@@ -77,13 +77,17 @@
         .form-group input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); }
         
         /* --- Live Scanner Styles --- */
-        #live-scanner-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 1100; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        #video-feed { max-width: 100%; width: 100%; height: auto; border-radius: 10px; }
-        #scanner-ui-overlay { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; align-items: center; }
+        #live-scanner-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: black; z-index: 1100; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #video-feed { max-width: 100%; width: 100%; height: 100%; object-fit: cover; }
+        #scanner-ui-overlay { position: absolute; bottom: 0; left: 0; width: 100%; padding: 20px; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent); display: flex; justify-content: center; gap: 15px; align-items: center; }
         #scanner-status-box { padding: 15px; border: 2px dashed var(--border-color); border-radius: 12px; margin-bottom: 20px; text-align: center; }
         #scanner-progress-bar-container { width: 100%; height: 8px; background-color: var(--border-color); border-radius: 4px; overflow: hidden; margin-top: 5px; display: none; }
         #scanner-progress-bar { width: 0%; height: 100%; background-color: var(--primary-color); border-radius: 4px; transition: width 0.3s ease; }
 
+        /* --- New Smart Scanning Zone --- */
+        #scanner-viewfinder { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 500px; height: 60%; border: 3px dashed white; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); pointer-events: none; }
+        #scanner-instruction { position: absolute; top: 15%; left: 50%; transform: translateX(-50%); color: white; background-color: rgba(0,0,0,0.5); padding: 8px 15px; border-radius: 8px; font-size: 14px; text-align: center; }
+        
         @media (max-width: 480px) { #analysis-table { font-size: 14px; } #analysis-table th, #analysis-table td { padding: 10px 5px; } }
         @media print {
             body * { visibility: hidden; }
@@ -142,10 +146,12 @@
     <div id="live-scanner-container" class="hidden">
         <video id="video-feed" playsinline></video>
         <canvas id="capture-canvas" class="hidden"></canvas>
+        <div id="scanner-viewfinder"></div>
+        <div id="scanner-instruction">उत्तरमाला को इस बॉक्स के अंदर रखें</div>
         <div id="scanner-ui-overlay">
             <button id="capture-btn" class="btn">📸 Capture & Scan</button>
-            <button id="torch-btn" class="icon-btn">🔦</button>
-            <button id="close-cam-btn" class="icon-btn">&times;</button>
+            <button id="torch-btn" class="icon-btn" style="color:white;">🔦</button>
+            <button id="close-cam-btn" class="icon-btn" style="color:white; font-size:36px;">&times;</button>
         </div>
     </div>
 
@@ -172,6 +178,7 @@
             liveScannerContainer: document.getElementById('live-scanner-container'),
             videoFeed: document.getElementById('video-feed'),
             captureCanvas: document.getElementById('capture-canvas'),
+            scannerViewfinder: document.getElementById('scanner-viewfinder'),
             captureBtn: document.getElementById('capture-btn'),
             torchBtn: document.getElementById('torch-btn'),
             closeCamBtn: document.getElementById('close-cam-btn'),
@@ -336,14 +343,14 @@
         refs.historyIcon.addEventListener('click', () => { displayHistory(); refs.historyPanel.classList.add('open'); });
         refs.historyCloseBtn.addEventListener('click', () => refs.historyPanel.classList.remove('open'));
         
-        // --- ACCURACY-OPTIMIZED LIVE SCANNER LOGIC ---
+        // --- FINAL, ACCURACY-FOCUSED LIVE SCANNER LOGIC ---
 
         const startCamera = async () => {
             try {
                 if (!('mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices)) {
                     alert('Camera not supported on this browser.'); return;
                 }
-                const constraints = { video: { facingMode: 'environment' } };
+                const constraints = { video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } };
                 videoStream = await navigator.mediaDevices.getUserMedia(constraints);
                 refs.videoFeed.srcObject = videoStream;
                 refs.videoFeed.play();
@@ -374,7 +381,6 @@
                 }
             } catch (err) {
                 console.error('Torch Error:', err);
-                alert("Could not control the flashlight.");
             }
         };
         
@@ -382,10 +388,9 @@
             const ctx = canvas.getContext('2d');
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imageData.data;
-            // Grayscale and Binarization (Thresholding) for better OCR
             for (let i = 0; i < data.length; i += 4) {
                 const avg = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-                const color = avg > 128 ? 255 : 0; // Threshold value 128
+                const color = avg > 128 ? 255 : 0;
                 data[i] = data[i + 1] = data[i + 2] = color;
             }
             ctx.putImageData(imageData, 0, 0);
@@ -394,21 +399,34 @@
         const captureAndProcessImage = () => {
             const canvas = refs.captureCanvas;
             const video = refs.videoFeed;
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const context = canvas.getContext('2d');
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            stopCamera();
-            
-            // Preprocess the image for better accuracy
-            preprocessCanvas(canvas);
+            const viewfinder = refs.scannerViewfinder;
 
+            // --- Smart Cropping Logic ---
+            const videoRect = video.getBoundingClientRect();
+            const viewfinderRect = viewfinder.getBoundingClientRect();
+
+            const scaleX = video.videoWidth / videoRect.width;
+            const scaleY = video.videoHeight / videoRect.height;
+            
+            const sx = (viewfinderRect.left - videoRect.left) * scaleX;
+            const sy = (viewfinderRect.top - videoRect.top) * scaleY;
+            const sWidth = viewfinderRect.width * scaleX;
+            const sHeight = viewfinderRect.height * scaleY;
+
+            canvas.width = sWidth;
+            canvas.height = sHeight;
+
+            const context = canvas.getContext('2d');
+            // Draw only the part of the video inside the viewfinder
+            context.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+            
+            stopCamera();
+            preprocessCanvas(canvas);
             processImage(canvas);
         };
         
         const parseOcrText = (text) => {
             const upperText = text.toUpperCase();
-            // Regex: Finds number, allows various separators, finds a single character from A, B, C, D.
             const regex = /(\d+)\s*[.\-()\[\]\s]*([A-D])/g;
             let match;
             let foundCount = 0;
@@ -439,14 +457,13 @@
                 }
             });
             try {
-                // Set whitelist for characters to improve accuracy
                 await worker.setParameters({
                     tessedit_char_whitelist: '0123456789ABCD.-()[]',
                 });
                 const { data: { text } } = await worker.recognize(imageSource);
                 const foundAnswers = parseOcrText(text);
                 statusDiv.textContent = `स्कैन पूरा हुआ! ${foundAnswers} जवाब मिले।`;
-                keyInputHandler(); // Update the UI
+                keyInputHandler();
             } catch (error) {
                 console.error(error);
                 statusDiv.textContent = 'स्कैन करते समय कोई त्रुटि हुई। कृपया पुनः प्रयास करें।';
