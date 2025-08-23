@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Digital OMR by MP</title>
-    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
         :root {
@@ -20,7 +19,7 @@
         header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 15px; margin: 0 -15px 20px -15px; background-color: var(--card-bg-translucent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--border-color); }
         header h1 { color: var(--primary-color); font-weight: 700; font-size: 24px; letter-spacing: 1px; }
         .top-controls { display: flex; align-items: center; gap: 10px; }
-        .icon-btn { background: none; border: none; cursor: pointer; color: var(--text-color); transition: transform 0.2s; padding: 5px; font-size: 24px; }
+        .icon-btn { background: none; border: none; cursor: pointer; color: var(--text-color); transition: transform 0.2s; padding: 5px; }
         .icon-btn svg { width: 24px; height: 24px; }
         #theme-selector { padding: 5px; border-radius: 5px; border: 1px solid var(--border-color); background-color: var(--card-bg); color: var(--text-color); }
         .btn { background-image: linear-gradient(45deg, var(--primary-color), var(--primary-hover)); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 500; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); }
@@ -75,19 +74,6 @@
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
         .form-group input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); }
-        
-        /* --- Live Scanner Styles --- */
-        #live-scanner-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: black; z-index: 1100; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        #video-feed { max-width: 100%; width: 100%; height: 100%; object-fit: cover; }
-        #scanner-ui-overlay { position: absolute; bottom: 0; left: 0; width: 100%; padding: 20px; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent); display: flex; justify-content: center; gap: 15px; align-items: center; }
-        #scanner-status-box { padding: 15px; border: 2px dashed var(--border-color); border-radius: 12px; margin-bottom: 20px; text-align: center; }
-        #scanner-progress-bar-container { width: 100%; height: 8px; background-color: var(--border-color); border-radius: 4px; overflow: hidden; margin-top: 5px; display: none; }
-        #scanner-progress-bar { width: 0%; height: 100%; background-color: var(--primary-color); border-radius: 4px; transition: width 0.3s ease; }
-
-        /* --- New Smart Scanning Zone --- */
-        #scanner-viewfinder { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 500px; height: 60%; border: 3px dashed white; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); pointer-events: none; }
-        #scanner-instruction { position: absolute; top: 15%; left: 50%; transform: translateX(-50%); color: white; background-color: rgba(0,0,0,0.5); padding: 8px 15px; border-radius: 8px; font-size: 14px; text-align: center; }
-        
         @media (max-width: 480px) { #analysis-table { font-size: 14px; } #analysis-table th, #analysis-table td { padding: 10px 5px; } }
         @media print {
             body * { visibility: hidden; }
@@ -120,39 +106,13 @@
                  </div>
             </div>
             <div id="test-container" class="hidden"><div class="card"><div id="progress-bar-container"><div id="progress-bar"></div></div><div id="omr-counter"></div><div id="omr-grid"></div><br><button id="submit-btn" class="btn">Test जमा करें</button></div></div>
-            <div id="key-container" class="hidden">
-                <div class="card">
-                    <h2>Answer Key डालें</h2>
-                    <div id="scanner-status-box">
-                        <p>उत्तरमाला की फोटो से जवाब भरें</p><br>
-                        <button id="start-cam-btn" class="btn secondary-btn">📷 कैमरा शुरू करें</button>
-                         <div id="scanner-progress-bar-container"><div id="scanner-progress-bar"></div></div>
-                    </div>
-                    <div id="manual-key-entry">
-                        <div id="key-display-wrapper"><p>आपकी Answer Key:</p><div id="key-display-box"></div></div>
-                        <div id="interactive-key-input"><p id="key-question-display"></p><div id="key-options"><button class="key-option-btn" data-value="A">A</button> <button class="key-option-btn" data-value="B">B</button><button class="key-option-btn" data-value="C">C</button> <button class="key-option-btn" data-value="D">D</button></div><div id="key-nav"><button id="prev-key-btn" class="btn secondary-btn">Previous</button><button id="next-key-btn" class="btn secondary-btn">Next</button></div></div><br>
-                    </div>
-                    <button id="check-result-btn" class="btn">Result देखें</button>
-                </div>
-            </div>
+            <div id="key-container" class="hidden"><div class="card"><h2>Answer Key डालें</h2><div id="key-display-wrapper"><p>आपकी Answer Key:</p><div id="key-display-box"></div></div><div id="interactive-key-input"><p id="key-question-display"></p><div id="key-options"><button class="key-option-btn" data-value="A">A</button> <button class="key-option-btn" data-value="B">B</button><button class="key-option-btn" data-value="C">C</button> <button class="key-option-btn" data-value="D">D</button></div><div id="key-nav"><button id="prev-key-btn" class="btn secondary-btn">Previous</button><button id="next-key-btn" class="btn secondary-btn">Next</button></div></div><br><button id="check-result-btn" class="btn">Result देखें</button></div></div>
             <div id="result-container" class="hidden"><div class="card"><div class="result-header"><h3 id="result-test-name"></h3><p id="result-date-time"></p></div><h2>Performance Analysis</h2><div id="result-summary"></div><table id="analysis-table"><thead><tr><th>प्रश्न #</th><th>आपका उत्तर</th><th>सही उत्तर</th><th>Remark</th></tr></thead><tbody id="analysis-body"></tbody></table><div class="action-buttons"><button id="save-history-btn" class="btn secondary-btn"></button><button onclick="window.print()" class="btn">🖨️ Print Result</button></div></div></div>
         </main>
     </div>
     
     <div id="history-panel">
         <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px;"><h2 style="margin:0;">Test History</h2><button id="history-close-btn" class="icon-btn" style="font-size: 30px;">&times;</button></div><ul id="history-list"></ul>
-    </div>
-
-    <div id="live-scanner-container" class="hidden">
-        <video id="video-feed" playsinline></video>
-        <canvas id="capture-canvas" class="hidden"></canvas>
-        <div id="scanner-viewfinder"></div>
-        <div id="scanner-instruction">उत्तरमाला को इस बॉक्स के अंदर रखें</div>
-        <div id="scanner-ui-overlay">
-            <button id="capture-btn" class="btn">📸 Capture & Scan</button>
-            <button id="torch-btn" class="icon-btn" style="color:white;">🔦</button>
-            <button id="close-cam-btn" class="icon-btn" style="color:white; font-size:36px;">&times;</button>
-        </div>
     </div>
 
     <script>
@@ -172,21 +132,9 @@
             resultTestName: document.getElementById('result-test-name'), resultDateTime: document.getElementById('result-date-time'),
             saveHistoryBtn: document.getElementById('save-history-btn'), historyIcon: document.getElementById('history-icon'),
             historyPanel: document.getElementById('history-panel'), historyList: document.getElementById('history-list'),
-            historyCloseBtn: document.getElementById('history-close-btn'),
-            // Scanner refs
-            startCamBtn: document.getElementById('start-cam-btn'),
-            liveScannerContainer: document.getElementById('live-scanner-container'),
-            videoFeed: document.getElementById('video-feed'),
-            captureCanvas: document.getElementById('capture-canvas'),
-            scannerViewfinder: document.getElementById('scanner-viewfinder'),
-            captureBtn: document.getElementById('capture-btn'),
-            torchBtn: document.getElementById('torch-btn'),
-            closeCamBtn: document.getElementById('close-cam-btn'),
-            scannerStatusBox: document.getElementById('scanner-status-box'),
-            scannerProgressBarContainer: document.getElementById('scanner-progress-bar-container'),
-            scannerProgressBar: document.getElementById('scanner-progress-bar')
+            historyCloseBtn: document.getElementById('history-close-btn')
         };
-        let questionCount = 0, testName = '', userAnswers = {}, currentKeyInputIndex = 0, answerKeyArray = [], currentTestState = {}, videoStream = null;
+        let questionCount = 0, testName = '', userAnswers = {}, currentKeyInputIndex = 0, answerKeyArray = [], currentTestState = {};
         const themes = {
             'Default Light': {}, 'Default Dark': { '--bg-color': '#212529', '--text-color': '#e9ecef', '--card-bg': '#343a40', '--primary-color': '#0d6efd', '--border-color': '#495057', '--card-bg-translucent': 'rgba(52, 58, 64, 0.8)'},
             'Material Blue': {'--primary-color': '#1976D2', '--primary-hover': '#1565C0', '--bg-color': '#ECEFF1', '--card-bg': '#FFFFFF'},
@@ -195,6 +143,24 @@
             'Nord': {'--bg-color': '#2E3440', '--text-color': '#D8DEE9', '--card-bg': '#3B4252', '--primary-color': '#88C0D0', '--border-color': '#4C566A'},
             'Dracula': {'--bg-color': '#282a36', '--text-color': '#f8f8f2', '--card-bg': '#44475a', '--primary-color': '#bd93f9', '--border-color': '#6272a4', '--correct-color': '#50fa7b', '--incorrect-color': '#ff5555'},
             'Monokai': {'--bg-color': '#272822', '--text-color': '#F8F8F2', '--card-bg': '#3E3D32', '--primary-color': '#A6E22E', '--correct-color': '#66D9EF', '--incorrect-color': '#F92672'},
+            'Ocean Blue': {'--primary-color': '#00A8CC', '--bg-color': '#E1F5FE', '--card-bg': '#FFFFFF'},
+            'Forest Green': {'--primary-color': '#2E7D32', '--bg-color': '#E8F5E9', '--card-bg': '#FFFFFF'},
+            'Sunrise Orange': {'--primary-color': '#F57C00', '--bg-color': '#FFF3E0', '--card-bg': '#FFFFFF'},
+            'Royal Purple': {'--primary-color': '#6A1B9A', '--bg-color': '#F3E5F5', '--card-bg': '#FFFFFF'},
+            'Graphite Gray': {'--primary-color': '#546E7A', '--bg-color': '#ECEFF1', '--card-bg': '#FFFFFF'},
+            'Tokyo Night': {'--bg-color': '#1a1b26', '--text-color': '#a9b1d6', '--card-bg': '#24283b', '--primary-color': '#7aa2f7', '--border-color': '#414868'},
+            'Mint': {'--primary-color': '#00BFA5', '--bg-color': '#E0F2F1', '--card-bg': '#FFFFFF'},
+            'Rose': {'--primary-color': '#D81B60', '--bg-color': '#FCE4EC', '--card-bg': '#FFFFFF'},
+            'Indigo': {'--primary-color': '#303F9F', '--bg-color': '#E8EAF6', '--card-bg': '#FFFFFF'},
+            'Cyberpunk': {'--primary-color': '#ffd300', '--bg-color': '#000000', '--text-color': '#ffffff', '--card-bg': '#212121', '--border-color': '#ffd300', '--correct-color': '#00ff00', '--incorrect-color': '#ff005d'},
+            'Espresso': {'--primary-color': '#D2B48C', '--bg-color': '#362222', '--text-color': '#F5F5DC', '--card-bg': '#4A3737', '--border-color': '#6B4F4F'},
+            'Lavender': {'--primary-color': '#7E57C2', '--bg-color': '#F3E5F5', '--card-bg': '#FFFFFF'},
+            'Teal': {'--primary-color': '#00796B', '--bg-color': '#E0F2F1', '--card-bg': '#FFFFFF'},
+            'Crimson': {'--primary-color': '#C2185B', '--bg-color': '#FCE4EC', '--card-bg': '#FFFFFF'},
+            'Mustard': {'--primary-color': '#FBC02D', '--bg-color': '#FFFDE7', '--card-bg': '#FFFFFF'},
+            'Slate': {'--primary-color': '#455A64', '--bg-color': '#ECEFF1', '--card-bg': '#FFFFFF'},
+            'Tangerine': {'--primary-color': '#F57C00', '--bg-color': '#FFF3E0', '--card-bg': '#FFFFFF'},
+            'Sky Blue': {'--primary-color': '#0288D1', '--bg-color': '#E1F5FE', '--card-bg': '#FFFFFF'},
         };
         const applyTheme = (themeName) => {
             const root = document.documentElement.style;
@@ -281,6 +247,7 @@
             refs.saveHistoryBtn.disabled = true; refs.saveHistoryBtn.textContent = "Saved ✓";
         };
 
+        // --- UPDATED AND FIXED HISTORY FUNCTIONS ---
         const getHistory = () => JSON.parse(localStorage.getItem('omrHistory') || '[]');
         const saveToHistory = (resultData) => {
             const history = getHistory(); history.unshift(resultData);
@@ -292,6 +259,7 @@
             history.forEach((test, index) => {
                 const li = document.createElement('li');
                 li.innerHTML = `<strong>${test.testName}</strong><br><small>${test.date}</small><br>✔ ${test.score.correct} | ✖ ${test.score.incorrect} | ⏩ ${test.score.skipped}`;
+                
                 li.addEventListener('click', () => { currentTestState = test; rebuildResultPage(test); refs.historyPanel.classList.remove('open'); });
                 li.addEventListener('contextmenu', (e) => {
                     e.preventDefault();
@@ -336,152 +304,15 @@
         refs.checkResultBtn.addEventListener('click', () => { if (answerKeyArray.includes('_')) { alert('Please complete the answer key.'); return; } checkResult(answerKeyArray.join('')); });
         refs.newTestIcon.addEventListener('click', () => {
              if(confirm('Start a new test? Your current progress will be lost.')){
-                localStorage.clear();
+                localStorage.removeItem('currentTestQuestionCount'); localStorage.removeItem('currentTestName');
+                localStorage.removeItem('currentTestAnswers'); localStorage.removeItem('currentKeyArray');
+                localStorage.removeItem('currentKeyIndex'); localStorage.removeItem('lastResultState');
                 history.replaceState(null, '', window.location.pathname); location.reload();
             }
         });
         refs.historyIcon.addEventListener('click', () => { displayHistory(); refs.historyPanel.classList.add('open'); });
         refs.historyCloseBtn.addEventListener('click', () => refs.historyPanel.classList.remove('open'));
         
-        // --- FINAL, ACCURACY-FOCUSED LIVE SCANNER LOGIC ---
-
-        const startCamera = async () => {
-            try {
-                if (!('mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices)) {
-                    alert('Camera not supported on this browser.'); return;
-                }
-                const constraints = { video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } };
-                videoStream = await navigator.mediaDevices.getUserMedia(constraints);
-                refs.videoFeed.srcObject = videoStream;
-                refs.videoFeed.play();
-                refs.liveScannerContainer.classList.remove('hidden');
-            } catch (err) {
-                console.error("Camera Error:", err);
-                alert("Could not access the camera. Please check permissions.");
-            }
-        };
-
-        const stopCamera = () => {
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
-            }
-            refs.liveScannerContainer.classList.add('hidden');
-        };
-        
-        const toggleTorch = async () => {
-            if (!videoStream) return;
-            const track = videoStream.getVideoTracks()[0];
-            try {
-                const hasTorch = 'torch' in track.getCapabilities();
-                if(hasTorch){
-                    const currentTorchState = track.getSettings().torch || false;
-                    await track.applyConstraints({ advanced: [{ torch: !currentTorchState }] });
-                } else {
-                    alert("Flashlight is not available on this device.");
-                }
-            } catch (err) {
-                console.error('Torch Error:', err);
-            }
-        };
-        
-        const preprocessCanvas = (canvas) => {
-            const ctx = canvas.getContext('2d');
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imageData.data;
-            for (let i = 0; i < data.length; i += 4) {
-                const avg = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-                const color = avg > 128 ? 255 : 0;
-                data[i] = data[i + 1] = data[i + 2] = color;
-            }
-            ctx.putImageData(imageData, 0, 0);
-        };
-
-        const captureAndProcessImage = () => {
-            const canvas = refs.captureCanvas;
-            const video = refs.videoFeed;
-            const viewfinder = refs.scannerViewfinder;
-
-            // --- Smart Cropping Logic ---
-            const videoRect = video.getBoundingClientRect();
-            const viewfinderRect = viewfinder.getBoundingClientRect();
-
-            const scaleX = video.videoWidth / videoRect.width;
-            const scaleY = video.videoHeight / videoRect.height;
-            
-            const sx = (viewfinderRect.left - videoRect.left) * scaleX;
-            const sy = (viewfinderRect.top - videoRect.top) * scaleY;
-            const sWidth = viewfinderRect.width * scaleX;
-            const sHeight = viewfinderRect.height * scaleY;
-
-            canvas.width = sWidth;
-            canvas.height = sHeight;
-
-            const context = canvas.getContext('2d');
-            // Draw only the part of the video inside the viewfinder
-            context.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
-            
-            stopCamera();
-            preprocessCanvas(canvas);
-            processImage(canvas);
-        };
-        
-        const parseOcrText = (text) => {
-            const upperText = text.toUpperCase();
-            const regex = /(\d+)\s*[.\-()\[\]\s]*([A-D])/g;
-            let match;
-            let foundCount = 0;
-            while ((match = regex.exec(upperText)) !== null) {
-                const qNum = parseInt(match[1], 10);
-                const answer = match[2];
-                if (qNum > 0 && qNum <= questionCount && ['A', 'B', 'C', 'D'].includes(answer)) {
-                    answerKeyArray[qNum - 1] = answer;
-                    foundCount++;
-                }
-            }
-            return foundCount;
-        };
-
-        const processImage = async (imageSource) => {
-            const statusDiv = refs.scannerStatusBox.querySelector('p');
-            statusDiv.textContent = 'स्कैनर शुरू हो रहा है...';
-            refs.scannerProgressBarContainer.style.display = 'block';
-            refs.scannerProgressBar.style.width = '0%';
-            
-            const worker = await Tesseract.createWorker('eng', 1, {
-                logger: m => {
-                    if (m.status === 'recognizing text') {
-                        const progress = Math.round(m.progress * 100);
-                        statusDiv.textContent = `प्रोसेसिंग... ${progress}%`;
-                        refs.scannerProgressBar.style.width = `${progress}%`;
-                    }
-                }
-            });
-            try {
-                await worker.setParameters({
-                    tessedit_char_whitelist: '0123456789ABCD.-()[]',
-                });
-                const { data: { text } } = await worker.recognize(imageSource);
-                const foundAnswers = parseOcrText(text);
-                statusDiv.textContent = `स्कैन पूरा हुआ! ${foundAnswers} जवाब मिले।`;
-                keyInputHandler();
-            } catch (error) {
-                console.error(error);
-                statusDiv.textContent = 'स्कैन करते समय कोई त्रुटि हुई। कृपया पुनः प्रयास करें।';
-            } finally {
-                await worker.terminate();
-                setTimeout(() => {
-                    refs.scannerProgressBarContainer.style.display = 'none';
-                    statusDiv.textContent = 'उत्तरमाला की फोटो से जवाब भरें';
-                }, 4000);
-            }
-        };
-
-        refs.startCamBtn.addEventListener('click', startCamera);
-        refs.closeCamBtn.addEventListener('click', stopCamera);
-        refs.torchBtn.addEventListener('click', toggleTorch);
-        refs.captureBtn.addEventListener('click', captureAndProcessImage);
-        
-        // --- THEME & INITIALIZATION LOGIC ---
         populateThemeSelector();
         const savedTheme = localStorage.getItem('selectedTheme') || 'Default Light';
         refs.themeSelector.value = savedTheme;
