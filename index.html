@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Digital OMR by MP</title>
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
         :root {
@@ -74,6 +75,13 @@
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
         .form-group input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); }
+        /* Scanner Styles */
+        #scanner-controls { padding: 15px; border: 2px dashed var(--border-color); border-radius: 12px; margin-bottom: 20px; text-align: center; }
+        #scanner-status { margin-top: 10px; font-weight: 500; }
+        #scanner-progress-bar-container { width: 100%; height: 8px; background-color: var(--border-color); border-radius: 4px; overflow: hidden; margin-top: 5px; display: none; }
+        #scanner-progress-bar { width: 0%; height: 100%; background-color: var(--primary-color); border-radius: 4px; transition: width 0.3s ease; }
+        .scanner-btns-flex { display: flex; gap: 10px; justify-content: center; align-items: center;}
+
         @media (max-width: 480px) { #analysis-table { font-size: 14px; } #analysis-table th, #analysis-table td { padding: 10px 5px; } }
         @media print {
             body * { visibility: hidden; }
@@ -106,7 +114,27 @@
                  </div>
             </div>
             <div id="test-container" class="hidden"><div class="card"><div id="progress-bar-container"><div id="progress-bar"></div></div><div id="omr-counter"></div><div id="omr-grid"></div><br><button id="submit-btn" class="btn">Test जमा करें</button></div></div>
-            <div id="key-container" class="hidden"><div class="card"><h2>Answer Key डालें</h2><div id="key-display-wrapper"><p>आपकी Answer Key:</p><div id="key-display-box"></div></div><div id="interactive-key-input"><p id="key-question-display"></p><div id="key-options"><button class="key-option-btn" data-value="A">A</button> <button class="key-option-btn" data-value="B">B</button><button class="key-option-btn" data-value="C">C</button> <button class="key-option-btn" data-value="D">D</button></div><div id="key-nav"><button id="prev-key-btn" class="btn secondary-btn">Previous</button><button id="next-key-btn" class="btn secondary-btn">Next</button></div></div><br><button id="check-result-btn" class="btn">Result देखें</button></div></div>
+            <div id="key-container" class="hidden">
+                <div class="card">
+                    <h2>Answer Key डालें</h2>
+
+                    <div id="scanner-controls">
+                        <p>उत्तरमाला की फोटो से जवाब भरें</p><br>
+                        <div class="scanner-btns-flex">
+                             <button id="scan-btn" class="btn secondary-btn">📷 स्कैनर से भरें</button>
+                             <button id="torch-btn" class="icon-btn" title="Toggle Flashlight">🔦</button>
+                        </div>
+                        <input type="file" id="image-scanner-input" accept="image/*" class="hidden">
+                        <div id="scanner-status"></div>
+                        <div id="scanner-progress-bar-container">
+                            <div id="scanner-progress-bar"></div>
+                        </div>
+                    </div>
+                    <div id="key-display-wrapper"><p>आपकी Answer Key:</p><div id="key-display-box"></div></div>
+                    <div id="interactive-key-input"><p id="key-question-display"></p><div id="key-options"><button class="key-option-btn" data-value="A">A</button> <button class="key-option-btn" data-value="B">B</button><button class="key-option-btn" data-value="C">C</button> <button class="key-option-btn" data-value="D">D</button></div><div id="key-nav"><button id="prev-key-btn" class="btn secondary-btn">Previous</button><button id="next-key-btn" class="btn secondary-btn">Next</button></div></div><br>
+                    <button id="check-result-btn" class="btn">Result देखें</button>
+                </div>
+            </div>
             <div id="result-container" class="hidden"><div class="card"><div class="result-header"><h3 id="result-test-name"></h3><p id="result-date-time"></p></div><h2>Performance Analysis</h2><div id="result-summary"></div><table id="analysis-table"><thead><tr><th>प्रश्न #</th><th>आपका उत्तर</th><th>सही उत्तर</th><th>Remark</th></tr></thead><tbody id="analysis-body"></tbody></table><div class="action-buttons"><button id="save-history-btn" class="btn secondary-btn"></button><button onclick="window.print()" class="btn">🖨️ Print Result</button></div></div></div>
         </main>
     </div>
@@ -132,7 +160,12 @@
             resultTestName: document.getElementById('result-test-name'), resultDateTime: document.getElementById('result-date-time'),
             saveHistoryBtn: document.getElementById('save-history-btn'), historyIcon: document.getElementById('history-icon'),
             historyPanel: document.getElementById('history-panel'), historyList: document.getElementById('history-list'),
-            historyCloseBtn: document.getElementById('history-close-btn')
+            historyCloseBtn: document.getElementById('history-close-btn'),
+            // Scanner refs
+            scanBtn: document.getElementById('scan-btn'), imageScannerInput: document.getElementById('image-scanner-input'),
+            torchBtn: document.getElementById('torch-btn'), scannerStatus: document.getElementById('scanner-status'),
+            scannerProgressBarContainer: document.getElementById('scanner-progress-bar-container'),
+            scannerProgressBar: document.getElementById('scanner-progress-bar')
         };
         let questionCount = 0, testName = '', userAnswers = {}, currentKeyInputIndex = 0, answerKeyArray = [], currentTestState = {};
         const themes = {
@@ -247,7 +280,6 @@
             refs.saveHistoryBtn.disabled = true; refs.saveHistoryBtn.textContent = "Saved ✓";
         };
 
-        // --- UPDATED AND FIXED HISTORY FUNCTIONS ---
         const getHistory = () => JSON.parse(localStorage.getItem('omrHistory') || '[]');
         const saveToHistory = (resultData) => {
             const history = getHistory(); history.unshift(resultData);
@@ -313,6 +345,64 @@
         refs.historyIcon.addEventListener('click', () => { displayHistory(); refs.historyPanel.classList.add('open'); });
         refs.historyCloseBtn.addEventListener('click', () => refs.historyPanel.classList.remove('open'));
         
+        // --- SCANNER LOGIC ---
+        refs.scanBtn.addEventListener('click', () => refs.imageScannerInput.click());
+        refs.imageScannerInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            processImage(file);
+        });
+
+        const parseOcrText = (text) => {
+            // Regex to find patterns like: 1. A, 5. a, 1. [a], 3. (B), 10) C etc.
+            const regex = /(\d+)\s*[.\-()\[\]]?\s*([a-dA-D])/g;
+            let match;
+            let foundCount = 0;
+            while ((match = regex.exec(text)) !== null) {
+                const qNum = parseInt(match[1], 10);
+                const answer = match[2].toUpperCase();
+                if (qNum > 0 && qNum <= questionCount) {
+                    answerKeyArray[qNum - 1] = answer;
+                    foundCount++;
+                }
+            }
+            return foundCount;
+        };
+
+        const processImage = async (file) => {
+            refs.scannerStatus.textContent = 'Initializing Scanner...';
+            refs.scannerProgressBarContainer.style.display = 'block';
+            refs.scannerProgressBar.style.width = '0%';
+            
+            const worker = await Tesseract.createWorker('eng', 1, {
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        const progress = Math.round(m.progress * 100);
+                        refs.scannerStatus.textContent = `स्कैन हो रहा है... ${progress}%`;
+                        refs.scannerProgressBar.style.width = `${progress}%`;
+                    }
+                }
+            });
+
+            try {
+                refs.scannerStatus.textContent = 'Recognizing Text...';
+                const { data: { text } } = await worker.recognize(file);
+                const foundAnswers = parseOcrText(text);
+                refs.scannerStatus.textContent = `Scan Complete. ${foundAnswers} answers found.`;
+                keyInputHandler(); // Update the UI with the new answers
+            } catch (error) {
+                console.error(error);
+                refs.scannerStatus.textContent = 'Error during scanning. Please try again.';
+            } finally {
+                await worker.terminate();
+                setTimeout(() => {
+                    refs.scannerProgressBarContainer.style.display = 'none';
+                    refs.scannerStatus.textContent = '';
+                }, 3000);
+            }
+        };
+        
+        // --- THEME & INITIALIZATION LOGIC ---
         populateThemeSelector();
         const savedTheme = localStorage.getItem('selectedTheme') || 'Default Light';
         refs.themeSelector.value = savedTheme;
