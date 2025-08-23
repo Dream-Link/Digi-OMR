@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital OMR by MP</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        :root {
+            --bg-color: #f0f2f5; --text-color: #333; --card-bg: #ffffff; --card-bg-translucent: rgba(255, 255, 255, 0.8);
+            --primary-color: #007bff; --primary-hover: #0056b3; --correct-color: #28a745; --incorrect-color: #dc3545;
+            --skipped-color: #6c757d; --border-color: #dee2e6; --shadow: 0 4px 25px rgba(0, 0, 0, 0.08);
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); } 20%, 40%, 60%, 80% { transform: translateX(5px); } }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--bg-color); color: var(--text-color); transition: background-color 0.3s, color 0.3s; }
+        .container { max-width: 950px; margin: 20px auto; padding: 0 15px; }
+        header { position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 15px; margin: 0 -15px 20px -15px; background-color: var(--card-bg-translucent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--border-color); }
+        header h1 { color: var(--primary-color); font-weight: 700; font-size: 24px; letter-spacing: 1px; }
+        .top-controls { display: flex; align-items: center; gap: 10px; }
+        .icon-btn { background: none; border: none; cursor: pointer; color: var(--text-color); transition: transform 0.2s; padding: 5px; }
+        .icon-btn svg { width: 24px; height: 24px; }
+        #theme-selector { padding: 5px; border-radius: 5px; border: 1px solid var(--border-color); background-color: var(--card-bg); color: var(--text-color); }
+        .btn { background-image: linear-gradient(45deg, var(--primary-color), var(--primary-hover)); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 500; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); }
+        .btn:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15); }
+        .btn:active { transform: translateY(0px) scale(0.98); }
+        .btn.secondary-btn { background-image: linear-gradient(45deg, var(--skipped-color), #5a6268); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); }
+        .card { background-color: var(--card-bg); border-radius: 16px; padding: 25px; box-shadow: var(--shadow); margin-bottom: 25px; animation: fadeIn 0.5s ease-out; }
+        .hidden { display: none !important; }
+        #quick-fill-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color); }
+        .quick-fill-btn { background-color: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 8px 16px; border-radius: 20px; cursor: pointer; }
+        .question-row { display: flex; align-items: center; padding: 10px; border-radius: 10px; border: 1px solid var(--border-color); }
+        .question-row.shake-warning { border-color: var(--incorrect-color) !important; animation: shake 0.5s ease-in-out; }
+        .options { display: flex; gap: 8px; margin-left: auto; }
+        .options label { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--border-color); display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: 500; transition: all 0.2s; }
+        .options input[type="radio"] { display: none; }
+        .options input[type="radio"]:checked + label { background-color: var(--primary-color); color: white; border-color: var(--primary-color); transform: scale(1.1); }
+        #progress-bar-container { width: 100%; height: 8px; background-color: var(--border-color); border-radius: 4px; overflow: hidden; margin-bottom: 25px; }
+        #progress-bar { width: 0%; height: 100%; background-color: var(--correct-color); border-radius: 4px; transition: width 0.5s ease; }
+        #omr-counter { display: flex; justify-content: space-around; background-color: var(--bg-color); padding: 10px; border-radius: 12px; margin-bottom: 25px; text-align: center; }
+        .counter-item .counter-label { font-size: 12px; margin-bottom: 2px; opacity: 0.8; }
+        .counter-item .counter-value { font-size: 20px; font-weight: 600; line-height: 1; }
+        #result-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .summary-item { padding: 20px; text-align: center; border-radius: 12px; background-color: var(--bg-color); border: 1px solid var(--border-color); }
+        .summary-item p { font-weight: 500; margin-bottom: 8px; }
+        .summary-item h3 { font-size: 36px; font-weight: 700; }
+        #analysis-table { width: 100%; border-collapse: separate; border-spacing: 0 5px; margin-top: 20px; }
+        #analysis-table th, #analysis-table td { padding: 12px 8px; text-align: center; }
+        #analysis-table thead tr { background-color: var(--primary-color); color: white; }
+        #analysis-table th:first-child, #analysis-table td:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+        #analysis-table th:last-child, #analysis-table td:last-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+        #analysis-table tbody tr { background-color: var(--card-bg); }
+        .correct-row { background-color: var(--correct-bg, rgba(40, 167, 69, 0.25)) !important; }
+        .incorrect-row { background-color: var(--incorrect-bg, rgba(220, 53, 69, 0.25)) !important; }
+        .skipped-row { background-color: var(--skipped-bg, rgba(23, 162, 184, 0.2)) !important; }
+        #interactive-key-input { text-align: center; }
+        #key-display-wrapper { margin-bottom: 25px; }
+        #key-options { display: flex; justify-content: center; gap: 15px; margin-bottom: 25px; }
+        .key-option-btn { width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--border-color); font-size: 20px; cursor: pointer; background-color: var(--card-bg); color: var(--text-color); }
+        .key-option-btn.selected { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
+        #key-nav { display: flex; justify-content: center; gap: 20px; }
+        #key-display-box { padding: 15px; border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--bg-color); min-height: 50px; font-family: monospace; font-size: 16px; line-height: 1.8; word-break: break-all; display: flex; flex-wrap: wrap; gap: 10px; }
+        .action-buttons { text-align: center; margin-top: 20px; display: flex; gap: 15px; justify-content: center; }
+        #history-panel { position: fixed; top: 0; right: -100%; width: 380px; max-width: 95vw; height: 100%; background-color: var(--card-bg); box-shadow: -10px 0 20px rgba(0,0,0,0.2); padding: 20px; transition: right 0.4s ease-in-out; z-index: 1000; overflow-y: auto; }
+        #history-panel.open { right: 0; }
+        #history-list { list-style: none; margin: 0; padding: 0; }
+        #history-list li { padding: 15px; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background-color 0.2s; user-select: none; -webkit-user-select: none; }
+        #history-list li:hover { background-color: var(--bg-color); }
+        .result-header { display: none; text-align: center; padding: 15px; background-color: var(--bg-color); border-radius: 12px; margin-bottom: 20px; }
+        .result-header h3 { margin: 0; color: var(--primary-color); }
+        .result-header p { margin: 5px 0 0; font-size: 14px; opacity: 0.7; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
+        .form-group input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); }
+        @media (max-width: 480px) { #analysis-table { font-size: 14px; } #analysis-table th, #analysis-table td { padding: 10px 5px; } }
+        @media print {
+            body * { visibility: hidden; }
+            #result-container, #result-container * { visibility: visible; }
+            #result-container { position: absolute; left: 0; top: 0; width: 100%; }
+            #result-container .card { box-shadow: none; border: 1px solid #ccc; }
+            .action-buttons, header, #history-panel { display: none !important; }
+            .result-header { display: block !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>OMR</h1>
+            <div class="top-controls">
+                <select id="theme-selector" title="Choose Theme"></select>
+                <button id="history-icon" class="icon-btn" title="Test History"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg></button>
+                <button id="new-test-icon" class="icon-btn" title="Start New Test"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
+            </div>
+        </header>
+        <main id="main-content">
+            <div id="setup-container">
+                 <div class="card">
+                    <h2>Test शुरू करें</h2>
+                    <div class="form-group"><label for="test-name">Test का नाम:</label><input type="text" id="test-name" placeholder="Test Name"></div>
+                    <div class="form-group"><label for="question-count">कुल प्रश्नों की संख्या:</label><input type="number" id="question-count" placeholder="जैसे: 10, 20, 50 etc..." min="1"></div>
+                    <button id="start-btn" class="btn">OMR Sheet बनाएं</button>
+                    <div id="quick-fill-container"><small>या जल्दी चुनें:</small></div>
+                 </div>
+            </div>
+            <div id="test-container" class="hidden"><div class="card"><div id="progress-bar-container"><div id="progress-bar"></div></div><div id="omr-counter"></div><div id="omr-grid"></div><br><button id="submit-btn" class="btn">Test जमा करें</button></div></div>
+            <div id="key-container" class="hidden"><div class="card"><h2>Answer Key डालें</h2><div id="key-display-wrapper"><p>आपकी Answer Key:</p><div id="key-display-box"></div></div><div id="interactive-key-input"><p id="key-question-display"></p><div id="key-options"><button class="key-option-btn" data-value="A">A</button> <button class="key-option-btn" data-value="B">B</button><button class="key-option-btn" data-value="C">C</button> <button class="key-option-btn" data-value="D">D</button></div><div id="key-nav"><button id="prev-key-btn" class="btn secondary-btn">Previous</button><button id="next-key-btn" class="btn secondary-btn">Next</button></div></div><br><button id="check-result-btn" class="btn">Result देखें</button></div></div>
+            <div id="result-container" class="hidden"><div class="card"><div class="result-header"><h3 id="result-test-name"></h3><p id="result-date-time"></p></div><h2>Performance Analysis</h2><div id="result-summary"></div><table id="analysis-table"><thead><tr><th>प्रश्न #</th><th>आपका उत्तर</th><th>सही उत्तर</th><th>Remark</th></tr></thead><tbody id="analysis-body"></tbody></table><div class="action-buttons"><button id="save-history-btn" class="btn secondary-btn"></button><button onclick="window.print()" class="btn">🖨️ Print Result</button></div></div></div>
+        </main>
+    </div>
+    
+    <div id="history-panel">
+        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px;"><h2 style="margin:0;">Test History</h2><button id="history-close-btn" class="icon-btn" style="font-size: 30px;">&times;</button></div><ul id="history-list"></ul>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const refs = {
+            containers: { setup: document.getElementById('setup-container'), test: document.getElementById('test-container'), key: document.getElementById('key-container'), result: document.getElementById('result-container') },
+            quickFillContainer: document.getElementById('quick-fill-container'),
+            omrGrid: document.getElementById('omr-grid'), omrCounter: document.getElementById('omr-counter'),
+            progressBar: document.getElementById('progress-bar'), themeSelector: document.getElementById('theme-selector'),
+            startBtn: document.getElementById('start-btn'),
+            submitBtn: document.getElementById('submit-btn'), newTestIcon: document.getElementById('new-test-icon'),
+            testNameInput: document.getElementById('test-name'), questionCountInput: document.getElementById('question-count'),
+            keyQuestionDisplay: document.getElementById('key-question-display'), keyOptions: document.getElementById('key-options'),
+            keyDisplayBox: document.getElementById('key-display-box'), prevKeyBtn: document.getElementById('prev-key-btn'),
+            nextKeyBtn: document.getElementById('next-key-btn'), checkResultBtn: document.getElementById('check-result-btn'),
+            analysisBody: document.getElementById('analysis-body'), resultSummary: document.getElementById('result-summary'),
+            resultTestName: document.getElementById('result-test-name'), resultDateTime: document.getElementById('result-date-time'),
+            saveHistoryBtn: document.getElementById('save-history-btn'), historyIcon: document.getElementById('history-icon'),
+            historyPanel: document.getElementById('history-panel'), historyList: document.getElementById('history-list'),
+            historyCloseBtn: document.getElementById('history-close-btn')
+        };
+        let questionCount = 0, testName = '', userAnswers = {}, currentKeyInputIndex = 0, answerKeyArray = [], currentTestState = {};
+        const themes = {
+            'Default Light': {}, 'Default Dark': { '--bg-color': '#212529', '--text-color': '#e9ecef', '--card-bg': '#343a40', '--primary-color': '#0d6efd', '--border-color': '#495057', '--card-bg-translucent': 'rgba(52, 58, 64, 0.8)'},
+            'Material Blue': {'--primary-color': '#1976D2', '--primary-hover': '#1565C0', '--bg-color': '#ECEFF1', '--card-bg': '#FFFFFF'},
+            'Gruvbox Dark': {'--bg-color': '#282828', '--text-color': '#ebdbb2', '--card-bg': '#3c3836', '--primary-color': '#fabd2f', '--border-color': '#504945', '--correct-color': '#b8bb26', '--incorrect-color': '#fb4934'},
+            'Solarized Light': {'--bg-color': '#fdf6e3', '--text-color': '#657b83', '--card-bg': '#eee8d5', '--primary-color': '#268bd2', '--border-color': '#eee8d5', '--correct-color': '#859900', '--incorrect-color': '#dc322f'},
+            'Nord': {'--bg-color': '#2E3440', '--text-color': '#D8DEE9', '--card-bg': '#3B4252', '--primary-color': '#88C0D0', '--border-color': '#4C566A'},
+            'Dracula': {'--bg-color': '#282a36', '--text-color': '#f8f8f2', '--card-bg': '#44475a', '--primary-color': '#bd93f9', '--border-color': '#6272a4', '--correct-color': '#50fa7b', '--incorrect-color': '#ff5555'},
+            'Monokai': {'--bg-color': '#272822', '--text-color': '#F8F8F2', '--card-bg': '#3E3D32', '--primary-color': '#A6E22E', '--correct-color': '#66D9EF', '--incorrect-color': '#F92672'},
+            'Ocean Blue': {'--primary-color': '#00A8CC', '--bg-color': '#E1F5FE', '--card-bg': '#FFFFFF'},
+            'Forest Green': {'--primary-color': '#2E7D32', '--bg-color': '#E8F5E9', '--card-bg': '#FFFFFF'},
+            'Sunrise Orange': {'--primary-color': '#F57C00', '--bg-color': '#FFF3E0', '--card-bg': '#FFFFFF'},
+            'Royal Purple': {'--primary-color': '#6A1B9A', '--bg-color': '#F3E5F5', '--card-bg': '#FFFFFF'},
+            'Graphite Gray': {'--primary-color': '#546E7A', '--bg-color': '#ECEFF1', '--card-bg': '#FFFFFF'},
+            'Tokyo Night': {'--bg-color': '#1a1b26', '--text-color': '#a9b1d6', '--card-bg': '#24283b', '--primary-color': '#7aa2f7', '--border-color': '#414868'},
+            'Mint': {'--primary-color': '#00BFA5', '--bg-color': '#E0F2F1', '--card-bg': '#FFFFFF'},
+            'Rose': {'--primary-color': '#D81B60', '--bg-color': '#FCE4EC', '--card-bg': '#FFFFFF'},
+            'Indigo': {'--primary-color': '#303F9F', '--bg-color': '#E8EAF6', '--card-bg': '#FFFFFF'},
+            'Cyberpunk': {'--primary-color': '#ffd300', '--bg-color': '#000000', '--text-color': '#ffffff', '--card-bg': '#212121', '--border-color': '#ffd300', '--correct-color': '#00ff00', '--incorrect-color': '#ff005d'},
+            'Espresso': {'--primary-color': '#D2B48C', '--bg-color': '#362222', '--text-color': '#F5F5DC', '--card-bg': '#4A3737', '--border-color': '#6B4F4F'},
+            'Lavender': {'--primary-color': '#7E57C2', '--bg-color': '#F3E5F5', '--card-bg': '#FFFFFF'},
+            'Teal': {'--primary-color': '#00796B', '--bg-color': '#E0F2F1', '--card-bg': '#FFFFFF'},
+            'Crimson': {'--primary-color': '#C2185B', '--bg-color': '#FCE4EC', '--card-bg': '#FFFFFF'},
+            'Mustard': {'--primary-color': '#FBC02D', '--bg-color': '#FFFDE7', '--card-bg': '#FFFFFF'},
+            'Slate': {'--primary-color': '#455A64', '--bg-color': '#ECEFF1', '--card-bg': '#FFFFFF'},
+            'Tangerine': {'--primary-color': '#F57C00', '--bg-color': '#FFF3E0', '--card-bg': '#FFFFFF'},
+            'Sky Blue': {'--primary-color': '#0288D1', '--bg-color': '#E1F5FE', '--card-bg': '#FFFFFF'},
+        };
+        const applyTheme = (themeName) => {
+            const root = document.documentElement.style;
+            const themeDefaults = {'--bg-color': '#f0f2f5', '--text-color': '#333', '--card-bg': '#ffffff', '--card-bg-translucent': 'rgba(255, 255, 255, 0.8)', '--primary-color': '#007bff', '--primary-hover': '#0056b3', '--correct-color': '#28a745', '--incorrect-color': '#dc3545', '--skipped-color': '#6c757d', '--border-color': '#dee2e6'};
+            const allThemeKeys = Object.values(themes).reduce((acc, theme) => ({...acc, ...theme}), {});
+            Object.keys(allThemeKeys).forEach(key => root.removeProperty(key)); 
+            const selectedTheme = { ...themeDefaults, ...(themes[themeName] || {}) };
+            for (const [key, value] of Object.entries(selectedTheme)) { root.setProperty(key, value); }
+            localStorage.setItem('selectedTheme', themeName);
+        };
+        const populateThemeSelector = () => { for (const themeName in themes) { const option = document.createElement('option'); option.value = themeName; option.textContent = themeName; refs.themeSelector.appendChild(option); } };
+        const showView = (viewName) => { Object.keys(refs.containers).forEach(key => { refs.containers[key].classList.toggle('hidden', key !== viewName); }); };
+        const updateURL = (viewName) => { if (`#${viewName}` !== window.location.hash) { history.pushState({ view: viewName }, '', `#${viewName}`); } showView(viewName); };
+        window.onpopstate = (event) => { if (event.state && event.state.view) showView(event.state.view); else showView('setup'); };
+
+        const startTest = (count, name) => {
+            questionCount = count; testName = name; userAnswers = {};
+            localStorage.setItem('currentTestQuestionCount', count);
+            localStorage.setItem('currentTestName', name);
+            localStorage.removeItem('currentTestAnswers'); localStorage.removeItem('currentKeyArray');
+            localStorage.removeItem('currentKeyIndex'); localStorage.removeItem('lastResultState');
+            generateOMRGrid(questionCount); updateOMRCounter(); updateURL('test');
+        };
+        const generateOMRGrid = (count) => {
+            refs.omrGrid.innerHTML = '';
+            for (let i = 1; i <= count; i++) {
+                 const rowHTML = `<div class="question-row" id="q-row-${i}"><div style="font-weight:600; margin-right: 15px;">${i}.</div><div class="options">
+                    ${['A', 'B', 'C', 'D', 'E'].map(opt => `<input type="radio" name="q${i}" id="q${i}${opt}" value="${opt}"><label for="q${i}${opt}">${opt}</label>`).join('')}
+                </div></div>`;
+                refs.omrGrid.insertAdjacentHTML('beforeend', rowHTML);
+            }
+        };
+        const updateOMRCounter = () => {
+            const answeredCount = Object.keys(userAnswers).length;
+            const skippedCount = Object.values(userAnswers).filter(ans => ans === 'E').length;
+            const percentage = questionCount > 0 ? (answeredCount / questionCount) * 100 : 0;
+            refs.progressBar.style.width = `${percentage}%`;
+            refs.omrCounter.innerHTML = `<div class="counter-item"><p class="counter-label">कुल प्रश्न</p><span class="counter-value">${questionCount}</span></div>
+                <div class="counter-item"><p class="counter-label">Attempted</p><span class="counter-value">${answeredCount - skippedCount}</span></div>
+                <div class="counter-item"><p class="counter-label">Skipped</p><span class="counter-value">${skippedCount}</span></div>`;
+        };
+        const renderKeyInputUI = () => {
+            refs.keyQuestionDisplay.textContent = `प्रश्न ${currentKeyInputIndex + 1} का उत्तर:`;
+            refs.keyDisplayBox.innerHTML = answerKeyArray.map((ans, index) => `<span class="key-item" style="background-color: var(--card-bg); padding: 2px 8px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);"><span style="font-size: 12px; color: var(--skipped-color);">${index + 1}:</span>${ans}</span>`).join('');
+            document.querySelectorAll('.key-option-btn').forEach(btn => btn.classList.toggle('selected', btn.dataset.value === answerKeyArray[currentKeyInputIndex]));
+            refs.prevKeyBtn.disabled = currentKeyInputIndex === 0;
+            refs.nextKeyBtn.disabled = currentKeyInputIndex === questionCount - 1;
+        };
+        const checkResult = (answerKey) => {
+            currentTestState = { testName, questionCount, userAnswers: {}, correctAnswers: {}, score: {}, date: new Date().toLocaleString('en-IN') };
+            let correct = 0, incorrect = 0, skipped = 0;
+            for (let i = 1; i <= questionCount; i++) {
+                const userAns = userAnswers[i], correctAns = answerKey[i - 1];
+                currentTestState.userAnswers[i] = userAns; currentTestState.correctAnswers[i] = correctAns;
+                if (userAns === 'E' || !userAns) { skipped++; } else if (userAns === correctAns) { correct++; } else { incorrect++; }
+            }
+            currentTestState.score = { correct, incorrect, skipped };
+            saveToHistory(currentTestState);
+            rebuildResultPage(currentTestState);
+            localStorage.setItem('lastResultState', JSON.stringify(currentTestState));
+            updateURL('result');
+            localStorage.removeItem('currentTestAnswers'); localStorage.removeItem('currentKeyArray'); localStorage.removeItem('currentKeyIndex');
+        };
+
+        const rebuildResultPage = (state) => {
+            refs.analysisBody.innerHTML = '';
+            const { correct, incorrect, skipped } = state.score;
+            refs.resultTestName.textContent = state.testName;
+            refs.resultDateTime.textContent = state.date;
+            for (let i = 1; i <= state.questionCount; i++) {
+                const userAns = state.userAnswers[i], correctAns = state.correctAnswers[i];
+                let remark = '', rowClass = '';
+                if (userAns === 'E' || !userAns) { rowClass = 'skipped-row'; remark = `⏩ <span style="font-weight: bold; color: var(--correct-color);">सही: ${correctAns}</span>`; }
+                else if (userAns === correctAns) { rowClass = 'correct-row'; remark = '✅'; }
+                else { rowClass = 'incorrect-row'; remark = `❌ <span style="font-weight: bold; color: var(--correct-color);">सही: ${correctAns}</span>`; }
+                const row = document.createElement('tr'); row.className = rowClass;
+                row.innerHTML = `<td>${i}</td><td><b>${userAns || '-'}</b></td><td><b>${correctAns}</b></td><td>${remark}</td>`;
+                refs.analysisBody.appendChild(row);
+            }
+            refs.resultSummary.innerHTML = `<div class="summary-item"><p>✅ सही</p><h3 style="color: var(--correct-color);">${correct}</h3></div>
+                <div class="summary-item"><p>❌ गलत</p><h3 style="color: var(--incorrect-color);">${incorrect}</h3></div>
+                <div class="summary-item"><p>⏩ Skip</p><h3 style="color: var(--skipped-color);">${skipped}</h3></div>`;
+            showView('result');
+            refs.saveHistoryBtn.disabled = true; refs.saveHistoryBtn.textContent = "Saved ✓";
+        };
+
+        // --- UPDATED AND FIXED HISTORY FUNCTIONS ---
+        const getHistory = () => JSON.parse(localStorage.getItem('omrHistory') || '[]');
+        const saveToHistory = (resultData) => {
+            const history = getHistory(); history.unshift(resultData);
+            localStorage.setItem('omrHistory', JSON.stringify(history));
+        };
+        const displayHistory = () => {
+            refs.historyList.innerHTML = ''; const history = getHistory();
+            if (history.length === 0) { refs.historyList.innerHTML = '<p>History is empty.</p>'; return; }
+            history.forEach((test, index) => {
+                const li = document.createElement('li');
+                li.innerHTML = `<strong>${test.testName}</strong><br><small>${test.date}</small><br>✔ ${test.score.correct} | ✖ ${test.score.incorrect} | ⏩ ${test.score.skipped}`;
+                
+                li.addEventListener('click', () => { currentTestState = test; rebuildResultPage(test); refs.historyPanel.classList.remove('open'); });
+                li.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    if(confirm(`Kya aap "${test.testName}" ko history se delete karna chahte hain?`)){
+                        const currentHistory = getHistory();
+                        currentHistory.splice(index, 1);
+                        localStorage.setItem('omrHistory', JSON.stringify(currentHistory));
+                        displayHistory();
+                    }
+                });
+                refs.historyList.appendChild(li);
+            });
+        };
+
+        refs.quickFillContainer.innerHTML += [10, 30, 50, 100, 120].map(num => `<button class="quick-fill-btn" data-value="${num}">${num}</button>`).join('');
+        const handleStart = () => {
+            const count = parseInt(refs.questionCountInput.value);
+            const name = refs.testNameInput.value.trim();
+            if (!name) { alert('कृपया Test का नाम डालें।'); return; }
+            if (isNaN(count) || count <= 0) { alert('कृपया प्रश्नों की सही संख्या डालें।'); return; }
+            startTest(count, name);
+        };
+        refs.quickFillContainer.addEventListener('click', (e) => { if (e.target.classList.contains('quick-fill-btn')) { refs.questionCountInput.value = e.target.dataset.value; handleStart(); } });
+        refs.startBtn.addEventListener('click', handleStart);
+        refs.omrGrid.addEventListener('change', (e) => {
+            const qNum = e.target.name.replace('q', ''); userAnswers[qNum] = e.target.value;
+            localStorage.setItem('currentTestAnswers', JSON.stringify(userAnswers));
+            updateOMRCounter();
+        });
+        refs.submitBtn.addEventListener('click', () => {
+            if (Object.keys(userAnswers).length < questionCount) {
+                document.querySelectorAll('.question-row').forEach(row => { if (!userAnswers[row.id.split('-')[2]]) { row.classList.add('shake-warning'); setTimeout(() => row.classList.remove('shake-warning'), 500); } });
+                return;
+            }
+            currentKeyInputIndex = 0; answerKeyArray = new Array(questionCount).fill('_');
+            renderKeyInputUI(); updateURL('key');
+        });
+        const keyInputHandler = () => { renderKeyInputUI(); localStorage.setItem('currentKeyArray', JSON.stringify(answerKeyArray)); localStorage.setItem('currentKeyIndex', currentKeyInputIndex); };
+        refs.keyOptions.addEventListener('click', (e) => { if (e.target.classList.contains('key-option-btn')) { answerKeyArray[currentKeyInputIndex] = e.target.dataset.value; if (currentKeyInputIndex < questionCount - 1) currentKeyInputIndex++; keyInputHandler(); } });
+        refs.prevKeyBtn.addEventListener('click', () => { if (currentKeyInputIndex > 0) { currentKeyInputIndex--; keyInputHandler(); } });
+        refs.nextKeyBtn.addEventListener('click', () => { if (currentKeyInputIndex < questionCount - 1) { currentKeyInputIndex++; keyInputHandler(); } });
+        refs.checkResultBtn.addEventListener('click', () => { if (answerKeyArray.includes('_')) { alert('Please complete the answer key.'); return; } checkResult(answerKeyArray.join('')); });
+        refs.newTestIcon.addEventListener('click', () => {
+             if(confirm('Start a new test? Your current progress will be lost.')){
+                localStorage.removeItem('currentTestQuestionCount'); localStorage.removeItem('currentTestName');
+                localStorage.removeItem('currentTestAnswers'); localStorage.removeItem('currentKeyArray');
+                localStorage.removeItem('currentKeyIndex'); localStorage.removeItem('lastResultState');
+                history.replaceState(null, '', window.location.pathname); location.reload();
+            }
+        });
+        refs.historyIcon.addEventListener('click', () => { displayHistory(); refs.historyPanel.classList.add('open'); });
+        refs.historyCloseBtn.addEventListener('click', () => refs.historyPanel.classList.remove('open'));
+        
+        populateThemeSelector();
+        const savedTheme = localStorage.getItem('selectedTheme') || 'Default Light';
+        refs.themeSelector.value = savedTheme;
+        applyTheme(savedTheme);
+        refs.themeSelector.addEventListener('change', () => applyTheme(refs.themeSelector.value));
+
+        const initialHash = window.location.hash.substring(1);
+        const savedQCount = localStorage.getItem('currentTestQuestionCount');
+        if (initialHash) {
+            if (initialHash === 'result') {
+                const lastResult = JSON.parse(localStorage.getItem('lastResultState'));
+                if (lastResult) { currentTestState = lastResult; rebuildResultPage(lastResult); } else { updateURL('setup'); }
+            } else if (savedQCount) {
+                questionCount = parseInt(savedQCount);
+                testName = localStorage.getItem('currentTestName') || '';
+                userAnswers = JSON.parse(localStorage.getItem('currentTestAnswers') || '{}');
+                if (initialHash === 'test' || initialHash === 'key') {
+                    generateOMRGrid(questionCount);
+                    Object.keys(userAnswers).forEach(qNum => { const radio = document.getElementById(`q${qNum}${userAnswers[qNum]}`); if(radio) radio.checked = true; });
+                    updateOMRCounter();
+                    if (initialHash === 'key') {
+                        answerKeyArray = JSON.parse(localStorage.getItem('currentKeyArray')) || new Array(questionCount).fill('_');
+                        currentKeyInputIndex = parseInt(localStorage.getItem('currentKeyIndex')) || 0;
+                        renderKeyInputUI();
+                    }
+                }
+                showView(initialHash);
+            } else { updateURL('setup'); }
+        } else {
+            updateURL('setup');
+        }
+    });
+    </script>
+</body>
+</html>
