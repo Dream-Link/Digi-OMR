@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Digital OMR by MP</title>
+    <link rel="manifest" href="manifest.json">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
         :root {
@@ -115,6 +116,19 @@
         <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px;"><h2 style="margin:0;">Test History</h2><button id="history-close-btn" class="icon-btn" style="font-size: 30px;">&times;</button></div><ul id="history-list"></ul>
     </div>
 
+    <script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(registration => {
+          console.log('Service Worker registered: ', registration);
+        })
+        .catch(registrationError => {
+          console.log('Service Worker registration failed: ', registrationError);
+        });
+    });
+  }
+</script>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         const refs = {
