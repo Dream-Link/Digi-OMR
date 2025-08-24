@@ -288,7 +288,7 @@
             });
         };
 
-        refs.quickFillContainer.innerHTML += [10, 30, 50, 100, 120].map(num => `<button class="quick-fill-btn" data-value="${num}">${num}</button>`).join('');
+        refs.quickFillContainer.innerHTML += [10, 20, 30, 50, 100, 120, 150].map(num => `<button class="quick-fill-btn" data-value="${num}">${num}</button>`).join('');
         const handleStart = () => {
             const count = parseInt(refs.questionCountInput.value);
             const name = refs.testNameInput.value.trim();
